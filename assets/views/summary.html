@@ -1,0 +1,157 @@
+<html>
+
+<head>
+
+    <link rel="stylesheet" href="/css/summary.css"></link>
+    <script src="/js/angular/angular.min.js"></script>
+    <script src="/js/angular-material/angular-material.min.js"></script>
+    <script src="/js/angular-messages/angular-messages.min.js"></script>
+    <script src="/js/angular-animate/angular-animate.min.js"></script>
+    <script src="/js/angular-aria/angular-aria.min.js"></script>
+    <link rel="stylesheet" href="/js/angular/angular-csp.css">
+    <link rel="stylesheet" href="/js/angular-material/angular-material.min.css">
+    <script>
+        var app = angular.module('app', ['ngMaterial']);
+        app.controller('controller', function ($scope, $http, $timeout) {
+            $scope.title = 'Summary (Loading...)';
+            $scope.checkoutRelease = function (identifier, branch) {
+                var params = {
+                    identifier: identifier,
+                    branch: branch
+                }
+                var endpoint = buildEndpoint('/api/checkout', params);
+                $scope.summaries[identifier].status_release = 'Processing...';
+                $http.get(endpoint).then(function (res) {
+                    $scope.summaries[identifier].status_remote = res.data.status;
+                    $scope.summaries[res.data.identifier].branch = (res.data.errors && res.data.errors
+                        .length > 0) ? $scope.summaries[res.data.identifier].branch : res.data.branch; //Update branch name only if no errors were reported
+                    $scope.summaries[identifier].status_release = res.data.status;
+                    $scope.summaries[
+                        identifier].feedback = (res.data.errors && (res.data.errors.length >
+                        0)) ? res.data.errors[0] : "";
+                    $timeout(function () {
+                        $scope.summaries[identifier].status_release = 'Checkout';
+                    }, 1000);
+                })
+                console.log('Checkout release: ' + identifier + " " + branch);
+            }
+
+            $scope.checkoutRemote = function (identifier, branch) {
+                var params = {
+                    identifier: identifier,
+                    branch: branch
+                }
+                var endpoint = buildEndpoint('/api/checkout', params);
+                $scope.summaries[identifier].status_remote = 'Processing...';
+                $http.get(endpoint).then(function (res) {
+                    $scope.summaries[identifier].status_remote = res.data.status;
+                    $scope.summaries[res.data.identifier].branch = (res.data.errors && res.data.errors
+                        .length > 0) ? $scope.summaries[res.data.identifier].branch : res.data.branch; //Update branch name only if no errors were reported
+                    $scope.summaries[identifier].feedback = (res.data.errors && (res.data.errors.length >
+                        0)) ? res.data.errors[0] : "";
+                    $timeout(function () {
+                        $scope.summaries[identifier].status_remote = 'Checkout';
+                    }, 1000);
+                })
+                console.log('Checkout remote: ' + identifier + " " + branch);
+            }
+            $scope.setActionStatus = function (action, status) {
+                $scope.action_report = {
+                    action: action,
+                    status: status,
+                    errors: []
+                };
+            }
+
+            function buildEndpoint(path, params) {
+                var op = path;
+                var first = true;
+                if (Object.keys(params).length > 0) {
+                    for (var prop in params) {
+                        if (!params[prop]) {
+                            continue;
+                        }
+                        if (first) {
+                            op += "?";
+                            first = false;
+                        } else {
+                            op += "&";
+                        }
+                        op += prop;
+                        op += "=";
+                        op += params[prop];
+                    }
+                }
+                return op;
+            }
+            //Load
+            $http.get("/api/summary").then(
+                function (res) {
+                    $scope.summaries = res.data;
+                    $scope.title = 'Summary';
+                    for (var identifier in res.data) {
+                        $scope.summaries[identifier].status_release = 'Checkout';
+                        $scope.summaries[identifier].status_remote = 'Checkout';
+                    }
+                }
+            ).catch(function (err) {
+                $scope.title = "Summary (Errors)";
+            });
+        })
+    </script>
+</head>
+
+<body class="bodycontainer">
+    <div ng-app="app">
+        <div ng-controller="controller">
+            <div ng-bind="title"></div>
+            <table>
+
+                <col width="80px">
+                <col width="70px">
+                <col width="70px">
+                <col width="100px">
+                <col width="80px">
+                <col width="80px">
+                <col width="200px">
+
+                <th>Current Branch</th>
+                <th>Repo Identifier</th>
+                <th>Folder Path</th>
+                <th>URL</th>
+                <th>Release Branches</th>
+                <th>Remote Branches</th>
+                <th>Feedback</th>
+                <tr ng-repeat="(identifier, summary) in summaries">
+                    <td ng-bind="summary.branch"></td>
+                    <td ng-bind="summary.identifier"></td>
+                    <td ng-bind="summary.path"></td>
+                    <td ng-bind="summary.url"></td>
+                    <td>
+                        <md-input-container>
+                            <md-select ng-model="releasebranch">
+                                <md-option class="md-input" ng-selected="true" ng-value="undefined"> Select </md-option>
+                                <md-option class="md-input" ng-repeat="(branch, info) in summary.release_branches" ng-value="branch"> {{branch}} </md-option>
+                            </md-select>
+                            <md-button class="md-raised" ng-click="checkoutRelease(summary.identifier, releasebranch)">{{summaries[identifier].status_release}}</md-button>
+                        </md-input-container>
+                    </td>
+                    <td>
+                        <md-input-container>
+                            <md-select ng-model="remotebranch">
+                                <md-option class="md-input" ng-selected="true" ng-value="undefined"> Select </md-option>
+                                <md-option class="md-input" ng-repeat="(branch, info) in summary.remote_branches" ng-value="branch"> {{branch}} </md-option>
+                            </md-select>
+                            <md-button class="md-raised" ng-click="checkoutRemote(summary.identifier, remotebranch)">{{summaries[identifier].status_remote}}</md-button>
+                        </md-input-container>
+                    </td>
+                    <td>
+                        <div ng-bind="summaries[identifier].feedback"></div>
+                    </td>
+                </tr>
+            </table>
+        </div>
+    </div>
+</body>
+
+</html>

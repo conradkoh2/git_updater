@@ -1,0 +1,12 @@
+let config = require('./../../../config');
+let fs = require('fs');
+let crypto = require('crypto');
+let publickey = fs.readFileSync(config.git_publickey);
+let privatekey = fs.readFileSync(config.git_privatekey);
+let enc = crypto.publicEncrypt(publickey.toString(), Buffer.from('conradkoh', 'utf8'));
+console.log('--------------------------');
+console.log(enc);
+console.log('--------------------------');
+let dec = crypto.privateDecrypt(privatekey.toString(), Buffer.from(enc, 'utf8'));
+console.log(dec.toString());
+console.log('--------------------------');
